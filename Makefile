@@ -3,7 +3,7 @@ cmnd = "$1"
 default: myrules.l;
 	@bison -d -v -r all myparser.y
 	@flex myrules.l
-	@gcc -o myLexer lex.yy.c myparser.tab.c cgen.c -lfl
+	@gcc -o myLexer myparser.tab.c lex.yy.c cgen.c -lfl
 
 clean: lex.yy.c  myLexer;
 	@rm lex.yy.c

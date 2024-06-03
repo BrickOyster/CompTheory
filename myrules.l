@@ -10,21 +10,48 @@
     
     #include <stdio.h>
     #include <string.h>
+    #include <stdlib.h>
     
     #include "cgen.h"
     #include  "myparser.tab.h"
 
     int lineNum  = 1;
+    char macro_regex[100];
+    char macro_name[100];
+    
+    typedef struct Macro {
+        char *name;
+        char *regex;
+    } Macro;
+
+    Macro macros[100];
+    int macro_count = 0;
+
+    void add_macro(const char *name, const char *regex) {
+        macros[macro_count].name = strdup(name);
+        macros[macro_count].regex = strdup(regex);
+        macro_count++;
+    }
+
+    char* get_macro_regex(const char *name) {
+        for (int i = 0; i < macro_count; i++) {
+            if (strcmp(macros[i].name, name) == 0) {
+                return macros[i].regex;
+            }
+        }
+        return NULL;
+    }
 %}
 
 %x COMMENT 
+%x MACRO
 
 DIGIT                   [0-9]
 CHAR                    [a-zA-Z]
 SYMBOL                  [-+*/:_$%!#@&~^()]
-IDENTIFIER              [a-zA-Z][0-9a-zA-Z_]*
-NUMBER                  [+-]?{DIGIT}+
-DECIMAL                 ([+-]?"."{NUMBER})|([+-]?{NUMBER}("."{NUMBER}?)?)
+IDENTIFIER              [a-zA-Z#][0-9a-zA-Z_]*
+NUMBER                  {DIGIT}+
+DECIMAL                 ("."{NUMBER})|({NUMBER}("."{NUMBER}))
 REAL                    {DECIMAL}([eE][+-]?{NUMBER})?
 ESC_CHAR                ("\\n"|"\\t"|"\\r"|"\\\\"|"\\\"")
 NONPRINT                [^"\\"^"\'"^"\""^"\n"]
@@ -33,7 +60,24 @@ CONSTANT_STR            ("\"")({ESC_CHAR}|{NONPRINT})*("\"")
 
 %%
 
-integer                 { yylval.str = strdup(yytext); return KW_integer; }
+"-*"                    {BEGIN(COMMENT); ; }
+
+<COMMENT>[^*\n]*        /* eat anything that's not a '*' */
+<COMMENT>"*"+[^*\-\n]*  /* eat up '*'s not followed by '-'s */
+<COMMENT>\n             ++lineNum;
+<COMMENT>"*"+"-"        { BEGIN(INITIAL); ; }
+
+"@defmacro " { BEGIN(MACRO); }
+
+<MACRO>{IDENTIFIER}     { strcpy(macro_name, yytext); yymore(); }
+<MACRO>"="|[ \r\t]+     { /* Ignore the '=' character or whitespaces */ }
+<MACRO>[^\n ^IDENTIFIER]+ {
+    strcpy(macro_regex, yytext);
+    add_macro(macro_name, macro_regex);
+    BEGIN(INITIAL);
+}
+
+integer|int             { yylval.str = strdup(yytext); return KW_integer; }
 scalar                  { yylval.str = strdup(yytext); return KW_scalar; }
 str                     { yylval.str = strdup(yytext); return KW_str; }
 bool                    { yylval.str = strdup(yytext); return KW_bool; }
@@ -57,57 +101,61 @@ return                  { yylval.str = strdup(yytext); return KW_return; }
 comp                    { yylval.str = strdup(yytext); return KW_comp; }
 endcomp                 { yylval.str = strdup(yytext); return KW_endcomp; }
 of                      { yylval.str = strdup(yytext); return KW_of; }
+void                    { yylval.str = strdup(yytext); return KW_void; }
 
-"."                     { return ".";}
-"("                     { return "(";}
-")"                     { return ")";}
-"["                     { return "[";}
-"]"                     { return "]";}
-"**"                    { return "**";}
-"*"                     { return "*";}
-"/"                     { return "/";}
-"%"                     { return "%";}
-"+"                     { return "+";}
-"-"                     { return "-";}
-"<"                     { return "<";}
-"<="                    { return "<=";}
-">"                     { return ">";}
-">="                    { return ">=";}
-"=="                    { return "==";}
-"!="                    { return "!=";}
-"not"                   { return "not"; }
-"and"                   { return "and"; }
-"or"                    { return "or"; }
-"="                     { return "=";}
-"+="                    { return "+=";}
-"-="                    { return "-=";}
-"*="                    { return "*=";}
-"/="                    { return "/=";}
-"%="                    { return "%=";}
-":="                    { return ":=";}
+"."                     { yylval.str = strdup(yytext); return KW_dot; }
+"("                     { yylval.str = strdup(yytext); return KW_openpar; }
+")"                     { yylval.str = strdup(yytext); return KW_closepar; }
+"["                     { yylval.str = strdup(yytext); return KW_openbr; }
+"]"                     { yylval.str = strdup(yytext); return KW_closebr; }
 
-";"                     { return ";";}
-","                     { return ",";}
-":"                     { return ":";}
+"**"                    { yylval.str = strdup(yytext); return KW_pow; }
+"*"                     { yylval.str = strdup(yytext); return KW_mult; }
+"/"                     { yylval.str = strdup(yytext); return KW_div; }
+"%"                     { yylval.str = strdup(yytext); return KW_mod; }
+"+"                     { yylval.str = strdup(yytext); return KW_add; }
+"-"                     { yylval.str = strdup(yytext); return KW_sub; }
 
-{DIGIT}                 { yylval.str = strdup(yytext); return KW_DIGIT; }
-{CHAR}                  { yylval.str = strdup(yytext); return KW_CHAR; }
-{IDENTIFIER}            { yylval.str = strdup(yytext); return KW_IDENTIFIER; }
+"<"                     { yylval.str = strdup(yytext); return KW_less; }
+"<="                    { yylval.str = strdup(yytext); return KW_lesseq; }
+">"                     { yylval.str = strdup(yytext); return KW_greater; }
+">="                    { yylval.str = strdup(yytext); return KW_greatereq; }
+"=="                    { yylval.str = strdup(yytext); return KW_equal; }
+"!="                    { yylval.str = strdup(yytext); return KW_notequal; }
+
+"not"                   { yylval.str = strdup(yytext); return KW_not; }
+"and"                   { yylval.str = strdup(yytext); return KW_and; }
+"or"                    { yylval.str = strdup(yytext); return KW_or; }
+
+"="                     { yylval.str = strdup(yytext); return KW_assign; }
+"+="                    { yylval.str = strdup(yytext); return KW_addassign; }
+"-="                    { yylval.str = strdup(yytext); return KW_subassign; }
+"*="                    { yylval.str = strdup(yytext); return KW_multassign; }
+"/="                    { yylval.str = strdup(yytext); return KW_divassign; }
+"%="                    { yylval.str = strdup(yytext); return KW_modassign; }
+":="                    { yylval.str = strdup(yytext); return KW_cassign; }
+
+";"                     { yylval.str = strdup(yytext); return KW_semicolon; }
+","                     { yylval.str = strdup(yytext); return KW_comma; }
+":"                     { yylval.str = strdup(yytext); return KW_colon; }
+
+"->"                    { yylval.str = strdup(yytext); return KW_funcrettype; }
+"#"                     { yylval.str = strdup(yytext); return KW_complocalvar; }
+
+{IDENTIFIER}            { 
+    char *regex = get_macro_regex(yytext);
+    if(regex) { yylval.str = strdup(regex); return KW_IDENTIFIER; }
+    else { yylval.str = strdup(yytext); return KW_IDENTIFIER; }
+}
+
 {NUMBER}                { yylval.str = strdup(yytext); return KW_NUMBER; }
 {REAL}                  { yylval.str = strdup(yytext); return KW_REAL; }
-{ESC_CHAR}              { yylval.str = strdup(yytext); return KW_ESC_CHAR; }
 {CONSTANT_CHAR}         { yylval.str = strdup(yytext); return KW_CONSTANT_CHAR; }
 {CONSTANT_STR}          { yylval.str = strdup(yytext); return KW_CONSTANT_STR; }
 
 [ \r\t]+                /* Eat up whitespace */
 
 "--"[^\n]*		        /* Eat line comments */
-"-*"                    { BEGIN(COMMENT); ; }
-
-<COMMENT>[^*\n]*        /* eat anything that's not a '*' */
-<COMMENT>"*"+[^*\-\n]*  /* eat up '*'s not followed by '-'s */
-<COMMENT>\n             ++lineNum;
-<COMMENT>"*"+"-"        { BEGIN(INITIAL); ; }
 
 <<EOF>>			        return EOF;
 

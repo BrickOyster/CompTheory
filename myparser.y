@@ -12,7 +12,9 @@
     #include <string.h>
     #include <stdlib.h>
     #include <math.h>
+
     #include "cgen.h"
+    #include "lambdalib.h"
 
     extern int yylex(void);
     extern int lineNum;
@@ -83,7 +85,7 @@
 
 out:
     program
-    { printf("#include <stdio.h>\n#include <math.h>\n#include \"cgen.h\"\n%s", $1); }
+    { printf("#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n#include <math.h>\n\n#include \"cgen.h\"\n#include\"lambdalib.h\"\n%s", $1); }
     ;
 
 program:    

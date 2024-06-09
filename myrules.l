@@ -26,6 +26,22 @@
 
     Macro macros[100];
     int macro_count = 0;
+    char* comps[100];
+    int comp_count = 0;
+
+    void add_comp(const char *name){
+        comps[comp_count] = strdup(name);
+        comp_count++;
+    }
+
+    int is_comp(const char *name) {
+        for (int i = 0; i < comp_count; i++) {
+            if (strcmp(comps[i], name) == 0) {
+                return 1;
+            }
+        }
+        return 0;
+    }
 
     void add_macro(const char *name, const char *regex) {
         macros[macro_count].name = strdup(name);
@@ -45,11 +61,12 @@
 
 %x COMMENT 
 %x MACRO
+%x COMP
 
 DIGIT                   [0-9]
 CHAR                    [a-zA-Z]
 SYMBOL                  [-+*/:_$%!#@&~^()]
-IDENTIFIER              [a-zA-Z#][0-9a-zA-Z_]*
+IDENTIFIER              [a-zA-Z][0-9a-zA-Z_]*
 NUMBER                  {DIGIT}+
 DECIMAL                 ("."{NUMBER})|({NUMBER}("."{NUMBER}))
 REAL                    {DECIMAL}([eE][+-]?{NUMBER})?
@@ -65,9 +82,9 @@ CONSTANT_STR            ("\"")({ESC_CHAR}|{NONPRINT})*("\"")
 <COMMENT>[^*\n]*        /* eat anything that's not a '*' */
 <COMMENT>"*"+[^*\-\n]*  /* eat up '*'s not followed by '-'s */
 <COMMENT>\n             ++lineNum;
-<COMMENT>"*"+"-"        { BEGIN(INITIAL); ; }
+<COMMENT>"*"+"-"        { BEGIN(INITIAL); }
 
-"@defmacro " { BEGIN(MACRO); }
+"@defmacro"             { BEGIN(MACRO); }
 
 <MACRO>{IDENTIFIER}     { strcpy(macro_name, yytext); yymore(); }
 <MACRO>"="|[ \r\t]+     { /* Ignore the '=' character or whitespaces */ }
@@ -77,7 +94,12 @@ CONSTANT_STR            ("\"")({ESC_CHAR}|{NONPRINT})*("\"")
     BEGIN(INITIAL);
 }
 
-integer|int             { yylval.str = strdup(yytext); return KW_integer; }
+comp                    { BEGIN(COMP); yylval.str = strdup(yytext); return KW_comp; }
+
+<COMP>#                 { /* Skip #.(not valid in c) */ }
+<COMP>{IDENTIFIER}      { add_comp(yytext); BEGIN(INITIAL); yylval.str = strdup(yytext); return KW_IDENTIFIER; }
+
+integer                 { yylval.str = strdup(yytext); return KW_integer; }
 scalar                  { yylval.str = strdup(yytext); return KW_scalar; }
 str                     { yylval.str = strdup(yytext); return KW_str; }
 bool                    { yylval.str = strdup(yytext); return KW_bool; }
@@ -98,7 +120,6 @@ def                     { yylval.str = strdup(yytext); return KW_def; }
 enddef                  { yylval.str = strdup(yytext); return KW_enddef; }
 main                    { yylval.str = strdup(yytext); return KW_main; }
 return                  { yylval.str = strdup(yytext); return KW_return; }
-comp                    { yylval.str = strdup(yytext); return KW_comp; }
 endcomp                 { yylval.str = strdup(yytext); return KW_endcomp; }
 of                      { yylval.str = strdup(yytext); return KW_of; }
 void                    { yylval.str = strdup(yytext); return KW_void; }
@@ -139,12 +160,13 @@ void                    { yylval.str = strdup(yytext); return KW_void; }
 ","                     { yylval.str = strdup(yytext); return KW_comma; }
 ":"                     { yylval.str = strdup(yytext); return KW_colon; }
 
+#                       { yylval.str = strdup(yytext); return KW_hash; }
 "->"                    { yylval.str = strdup(yytext); return KW_funcrettype; }
-"#"                     { yylval.str = strdup(yytext); return KW_complocalvar; }
 
 {IDENTIFIER}            { 
     char *regex = get_macro_regex(yytext);
     if(regex) { yylval.str = strdup(regex); return KW_IDENTIFIER; }
+    else if(is_comp(yytext)){ yylval.str = strdup(yytext); return KW_udclass; }
     else { yylval.str = strdup(yytext); return KW_IDENTIFIER; }
 }
 
@@ -154,6 +176,7 @@ void                    { yylval.str = strdup(yytext); return KW_void; }
 {CONSTANT_STR}          { yylval.str = strdup(yytext); return KW_CONSTANT_STR; }
 
 [ \r\t]+                /* Eat up whitespace */
+
 
 "--"[^\n]*		        /* Eat line comments */
 

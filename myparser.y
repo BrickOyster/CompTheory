@@ -38,6 +38,7 @@
 
     void add_compfunc(char* func)
     {
+        // printf("%s\n",func);
         comps_encountared[comps_count-1].funcs[comps_encountared[comps_count-1].func_count] = func;
         comps_encountared[comps_count-1].func_count++;
     };
@@ -45,6 +46,7 @@
     char funcs_init[10000];
     char curr_var[100];
     char last_var[100];
+    char lastest_var[100];
 
     void iscomp(char* name)
     {
@@ -56,7 +58,7 @@
                 {
                     strcpy(funcs_init, " = { ");
 
-                    for(int j = 0; j < (comps_encountared[i].func_count - 2); j++)
+                    for(int j = 0; j < (comps_encountared[i].func_count - 1); j++)
                     {
                         strcat(funcs_init, ".");
                         strcat(funcs_init, comps_encountared[i].funcs[j]);
@@ -80,8 +82,9 @@
 
     int iscompfunc(char* name)
     {
-        if(strcmp(name,"null"))
+        if(name == NULL || !strcmp(name,"NULL"))
         {
+            // printf("%s\tret0\n",name);
             return 0;
         }
 
@@ -89,12 +92,16 @@
         {
             for(int j = 0; j < comps_encountared[i].func_count; j++)
             {
-                if(strcmp(name,comps_encountared[i].funcs[j]) == 0)
+                // printf("%d:%d:\tcc%d\tfc%d\n", i, j, comps_count, comps_encountared[i].func_count);
+                // printf("\t\t%s %s\n",name,comps_encountared[i].funcs[j]);
+                if(!strcmp(name,comps_encountared[i].funcs[j]))
                 {
+                    // printf("%s\tret1\n",name);
                     return 1;
                 }
             }
         }
+        // printf("%s\tret0\n",name);
         return 0;
     }
 
@@ -114,12 +121,11 @@
             if (!(p = strstr(str + i, orig)))
             {
                 strcat(buffer, str + i);
-                break; //return str;
+                break;
             }
             strncpy(buffer + strlen(buffer), str + i, (p - str) - i);
             buffer[p - str] = '\0';
             strcat(buffer, rep);
-            //printf("STR:%s\n", buffer);
             i = (p - str) + strlen(orig);
         }
 
@@ -135,7 +141,7 @@
 }
 
 %token KW_integer KW_scalar KW_str KW_bool KW_const KW_of
-%token  KW_comp KW_endcomp KW_udclass KW_hash
+%token KW_comp KW_endcomp KW_udclass KW_hash
 %token KW_True KW_False
 %token KW_if KW_else KW_endif
 %token KW_for KW_in KW_endfor KW_while KW_endwhile KW_break KW_continue
@@ -162,6 +168,7 @@
 %type <str> main
 %type <str> comp_struct
 %type <str> compvars
+%type <str> compvars_line
 %type <str> functioncall
 %type <str> comp_function_statements
 %type <str> comp_function_parameters
@@ -197,7 +204,7 @@
 
 out:
     program
-    { printf("#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n#include <math.h>\n\n#include \"cgen.h\"\n#include\"lambdalib.h\"\n%s", $1); }
+    { printf("\n#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n#include <math.h>\n\n#include \"cgen.h\"\n#include\"lambdalib.h\"\n%s", $1); }
     ;
 
 program:    
@@ -239,37 +246,22 @@ loop_instr:
 
 main:
     KW_def KW_main KW_openpar KW_closepar KW_colon code KW_enddef KW_semicolon
-    {$$ = template("int main ( ) {\n%s\n};", $6);}
+    { $$ = template("int main ( ) {\n%s\n};", $6); }
     ;
 
 compound_arrays:
     KW_IDENTIFIER KW_cassign KW_openbr expr KW_for KW_IDENTIFIER KW_colon expr KW_closebr KW_colon type KW_semicolon
     {
-        if(strstr($4,$6) != NULL)
-        {
-            $$ = template("%s* %s = (%s*)malloc((%s) * sizeof(%s));\nfor (int %s = 0; %s < %s; ++%s) { %s[%s] = %s; };", $11, $1, $11, $8, $11, $6, $6, $8, $6, $1, $6, $4);
-        }
-        else
-        {
-            $$ = template("");
-        }
+        $$ = template("%s* %s = (%s*)malloc((%s) * sizeof(%s));\nfor (int %s = 0; %s < %s; ++%s) { %s[%s] = %s; };", $11, $1, $11, $8, $11, $6, $6, $8, $6, $1, $6, $4);
     }
-    |//new_array   :=         [         expr for    elm           :         type in   array of size ]          :        new_type;
-    KW_IDENTIFIER KW_cassign KW_openbr expr KW_for KW_IDENTIFIER KW_colon type KW_in var KW_of expr KW_closebr KW_colon type KW_semicolon
+    |KW_IDENTIFIER KW_cassign KW_openbr expr KW_for KW_IDENTIFIER KW_colon type KW_in var KW_of expr KW_closebr KW_colon type KW_semicolon
     {
-        if(strstr($4,$6) != NULL)
-        {
-            char* array = $10;
-            char replace[100];
-            strcpy(replace,$10);
-            strcat(replace,"[array_i]");
+        char* array = $10;
+        char replace[100];
+        strcpy(replace,$10);
+        strcat(replace,"[array_i]");
             
-            $$ = template("%s* %s = (%s*)malloc((%s) * sizeof(%s));\nfor (int array_i = 0; array_i < %s; ++array_i) { %s[array_i] = %s; };", $15, $1, $15, $12, $15, $12, $1, replace_str($4, $6, replace)); 
-        }
-        else
-        {
-            $$ = template("");
-        }
+        $$ = template("%s* %s = (%s*)malloc((%s) * sizeof(%s));\nfor (int array_i = 0; array_i < %s; ++array_i) { %s[array_i] = %s; };", $15, $1, $15, $12, $15, $12, $1, replace_str($4, $6, replace)); 
     }
     ;
 
@@ -286,23 +278,27 @@ comp_function_statements:
     KW_endcomp                              { $$ = template("\n};"); }
     |KW_def KW_IDENTIFIER KW_openpar comp_function_parameters KW_closepar KW_funcrettype type KW_colon code KW_enddef KW_semicolon comp_function_statements
     { 
+        // printf("%s",$2);
         add_compfunc($2);
-        $$ = template("%s (*%s) (struct %s *self, %s);%s \n%s %s (struct %s *self, %s){\n%s\n};", $7, $2, comps_encountared[comps_count - 1].name, $4, $12, $7, $2, comps_encountared[comps_count - 1].name, $4, $9);
+        $$ = template("%s (*%s) (struct %s *self, %s);\n%s \n%s %s (struct %s *self, %s){\n%s\n};", $7, $2, comps_encountared[comps_count - 1].name, $4, $12, $7, $2, comps_encountared[comps_count - 1].name, $4, $9);
     }
     |KW_def KW_IDENTIFIER KW_openpar comp_function_parameters KW_closepar KW_colon code KW_enddef KW_semicolon comp_function_statements
     { 
+        // printf("%s",$2);
         add_compfunc($2);
-        $$ = template("void (*%s) (struct %s *self, %s);%s \nvoid %s (struct %s *self, %s){\n%s\n};", $2, comps_encountared[comps_count - 1].name, $4, $10, $2, comps_encountared[comps_count - 1].name, $4, $7);
+        $$ = template("void (*%s) (struct %s *self, %s);\n%s \nvoid %s (struct %s *self, %s){\n%s\n};", $2, comps_encountared[comps_count - 1].name, $4, $10, $2, comps_encountared[comps_count - 1].name, $4, $7);
     }
     |KW_def KW_IDENTIFIER KW_openpar KW_closepar KW_funcrettype type KW_colon code KW_enddef KW_semicolon comp_function_statements
     { 
+        // printf("%s",$2);
         add_compfunc($2);
-        $$ = template("%s (*%s) (struct %s *self);%s \n%s %s (struct %s *self){\n%s\n};", $6, $2, comps_encountared[comps_count - 1].name, $11, $6, $2, comps_encountared[comps_count - 1].name, $8);
+        $$ = template("%s (*%s) (struct %s *self);\n%s \n%s %s (struct %s *self){\n%s\n};", $6, $2, comps_encountared[comps_count - 1].name, $11, $6, $2, comps_encountared[comps_count - 1].name, $8);
     }
     |KW_def KW_IDENTIFIER KW_openpar KW_closepar KW_colon code KW_enddef KW_semicolon comp_function_statements
     { 
+        // printf("%s",$2);
         add_compfunc($2);
-        $$ = template("void (*%s) (struct %s *self);%s \nvoid %s (struct %s *self){\n%s\n};", $2, comps_encountared[comps_count - 1].name, $9, $2, comps_encountared[comps_count - 1].name, $6);
+        $$ = template("void (*%s) (struct %s *self);\n%s \nvoid %s (struct %s *self){\n%s\n};", $2, comps_encountared[comps_count - 1].name, $9, $2, comps_encountared[comps_count - 1].name, $6);
     }
     ;
 
@@ -314,11 +310,17 @@ comp_function_parameters:
 
 compvars:
     %empty                                      { $$ = template(""); }
-    |KW_hash KW_IDENTIFIER                      { $$ = template("%s", $2); }
+    |compvars compvars_line                     { $$ = template("%s\n%s", $1, $2); }
+
+compvars_line:
+    KW_hash KW_IDENTIFIER                      { $$ = template("%s", $2); }
     |KW_hash KW_IDENTIFIER arrays               { $$ = template("%s%s", $2, $3); }
-    |compvars KW_comma KW_hash KW_IDENTIFIER    { $$ = template("%s, %s", $1, $4); }
-    |compvars KW_comma KW_hash KW_IDENTIFIER arrays{ $$ = template("%s, %s%s", $1, $4, $5); }
-    |compvars KW_colon type KW_semicolon        { $$ = template("\n%s %s;", $3, $1); }
+    |compvars_line KW_comma KW_hash KW_IDENTIFIER    
+    { $$ = template("%s, %s", $1, $4); }
+    |compvars_line KW_comma KW_hash KW_IDENTIFIER arrays
+    { $$ = template("%s, %s%s", $1, $4, $5); }
+    |compvars_line KW_colon type KW_semicolon        
+    { $$ = template("\n%s %s;", $3, $1); }
     ;
 
 functioncall:
@@ -332,27 +334,27 @@ functioncall_statement:
 functioncall_parameters:
     %empty                              
     { 
+        // printf("%s %s\n",curr_var, last_var);
         if(iscompfunc(curr_var))
         {
-            $$ = template("");    
+            $$ = template("&%s", last_var);    
         }
         else
         {
-            $$ = template("&%s", last_var);
+            $$ = template("");
         }
-        // $$ = template("");
     }
     |expr 
     { 
-        if(iscompfunc(curr_var))
+        // printf("%s %s\n",curr_var, last_var);
+        if(iscompfunc(last_var))
         {
-            $$ = template("&%s, %s", last_var, $1);    
+            $$ = template("&%s, %s", lastest_var, $1);    
         }
         else
         {
             $$ = template("%s",$1);
         }
-        // $$ = template("%s",$1);
     }                              
     |functioncall_parameters KW_comma expr  
     { $$ = template("%s, %s", $1, $3);}
@@ -424,12 +426,14 @@ give_value:
     ;
 
 var:
-    KW_IDENTIFIER                       { strcpy(last_var, curr_var); strcpy(curr_var, $1); $$ = template("%s", $1); }
-    |KW_hash KW_IDENTIFIER              { strcpy(last_var, curr_var); strcpy(curr_var, "null"); $$ = template("self->%s", $2); }
-    |KW_IDENTIFIER arrays               { strcpy(last_var, curr_var); strcpy(curr_var, "null"); $$ = template("%s%s", $1, $2); }
-    |var KW_dot KW_IDENTIFIER           { strcpy(last_var, curr_var); strcpy(curr_var, $3); $$ = template("%s.%s", $1, $3); }
-    |var KW_dot KW_hash KW_IDENTIFIER   { strcpy(last_var, curr_var); strcpy(curr_var, "null"); $$ = template("%s.%s", $1, $4); }
-    |var KW_dot KW_IDENTIFIER arrays    { strcpy(last_var, curr_var); strcpy(curr_var, "null"); $$ = template("%s.%s%s", $1, $3, $4); }
+    KW_IDENTIFIER                           { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("%s", $1)); $$ = template("%s", $1); }
+    |KW_hash KW_IDENTIFIER                  { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("self->%s", $2)); $$ = template("self->%s", $2);}
+    |KW_IDENTIFIER arrays                   { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("%s%s", $1, $2)); $$ = template("%s%s", $1, $2); }
+    |KW_hash KW_IDENTIFIER arrays           { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("self->%s%s", $2, $3)); $$ = template("self->%s%s", $2, $3); }
+    |var KW_dot KW_IDENTIFIER               { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, $3); $$ = template("%s.%s", $1, $3); }
+    |var KW_dot KW_hash KW_IDENTIFIER       { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, $4); $$ = template("%s.%s", $1, $4); }
+    |var KW_dot KW_IDENTIFIER arrays        { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("%s%s", $3, $4)); $$ = template("%s.%s%s", $1, $3, $4); }
+    |var KW_dot KW_hash KW_IDENTIFIER arrays{ strcpy(last_var, curr_var); strcpy(curr_var, template("%s%s", $4, $5)); $$ = template("%s.%s%s", $1, $4, $5); }
     ;
     
 arrays:
@@ -442,39 +446,39 @@ arrays:
 type: 
     KW_integer                          { $$ = template("int"); }
     |KW_scalar                          { $$ = template("double"); }
-    |KW_str                             { $$ = template("string"); }
+    |KW_str                             { $$ = template("StringType"); }
     |KW_bool                            { $$ = template("int"); }
     |KW_void                            { $$ = template("void"); }
     |KW_udclass                         { $$ = template("%s", $1); }
     ;
 
 expr:
-    KW_REAL                             
-    |KW_NUMBER                          
-    |KW_CONSTANT_STR                    
-    |KW_CONSTANT_CHAR                   
+    KW_REAL                             { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s",$1); }
+    |KW_NUMBER                          { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s",$1); }
+    |KW_CONSTANT_STR                    { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s",$1); }
+    |KW_CONSTANT_CHAR                   { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s",$1); }
     |var                                
     |functioncall_statement
-    |KW_True                            { $$ = template("1"); }
-    |KW_False		                    { $$ = template("0"); }
-    |KW_openpar expr KW_closepar        { $$ = template("(%s)",$2); }
-    |expr KW_pow expr                   { $$ = template("pow(%s, %s)", $1, $3); }
-    |KW_add expr                        { $$ = template("+%s",$2); }
-    |KW_sub expr                        { $$ = template("-%s",$2); }
-    |expr KW_mult expr                  { $$ = template("%s * %s", $1, $3); }
-    |expr KW_div expr                   { $$ = template("%s / %s", $1, $3); }
-    |expr KW_mod expr                   { $$ = template("%s %% %s", $1, $3); }
-    |expr KW_add expr                   { $$ = template("%s + %s", $1, $3); }
-    |expr KW_sub expr                   { $$ = template("%s - %s", $1, $3); }
-    |expr KW_less expr                  { $$ = template("%s < %s", $1, $3); }
-    |expr KW_lesseq expr                { $$ = template("%s <= %s", $1, $3); }
-    |expr KW_greater expr               { $$ = template("%s > %s", $1, $3); }
-    |expr KW_greatereq expr             { $$ = template("%s >= %s", $1, $3); }
-    |expr KW_equal expr                 { $$ = template("%s == %s", $1, $3); }
-    |expr KW_notequal expr              { $$ = template("%s != %s", $1, $3); }
-    |KW_not expr                        { $$ = template("! %s", $2); }
-    |expr KW_and expr                   { $$ = template("%s && %s", $1, $3); }
-    |expr KW_or expr                    { $$ = template("%s || %s", $1, $3); }
+    |KW_True                            { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("1"); }
+    |KW_False		                    { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("0"); }
+    |KW_openpar expr KW_closepar        { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("(%s)",$2); }
+    |expr KW_pow expr                   { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("pow(%s, %s)", $1, $3); }
+    |KW_add expr                        { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("+%s",$2); }
+    |KW_sub expr                        { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("-%s",$2); }
+    |expr KW_mult expr                  { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s * %s", $1, $3); }
+    |expr KW_div expr                   { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s / %s", $1, $3); }
+    |expr KW_mod expr                   { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s %% %s", $1, $3); }
+    |expr KW_add expr                   { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s + %s", $1, $3); }
+    |expr KW_sub expr                   { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s - %s", $1, $3); }
+    |expr KW_less expr                  { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s < %s", $1, $3); }
+    |expr KW_lesseq expr                { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s <= %s", $1, $3); }
+    |expr KW_greater expr               { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s > %s", $1, $3); }
+    |expr KW_greatereq expr             { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s >= %s", $1, $3); }
+    |expr KW_equal expr                 { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s == %s", $1, $3); }
+    |expr KW_notequal expr              { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s != %s", $1, $3); }
+    |KW_not expr                        { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("! %s", $2); }
+    |expr KW_and expr                   { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s && %s", $1, $3); }
+    |expr KW_or expr                    { strcpy(lastest_var, last_var); strcpy(last_var, curr_var); strcpy(curr_var, template("NULL")); $$ = template("%s || %s", $1, $3); }
     ;
 
 %%
@@ -488,5 +492,6 @@ int main( int argc, char **argv )
         yyin = stdin;
     
     if ( yyparse() == 1 )
-        printf("/*-Rejected!-*/\n/* Unrecognized token in line %d: %s\n", lineNum, yylval.str);
+        printf("Rejected!\n Unrecognized token in line %d: %s\n", lineNum, yylval.str);
+
 }

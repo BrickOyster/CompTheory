@@ -99,10 +99,10 @@ comp                    { BEGIN(COMP); yylval.str = strdup(yytext); return KW_co
 <COMP>#                 { /* Skip #.(not valid in c) */ }
 <COMP>{IDENTIFIER}      { add_comp(yytext); BEGIN(INITIAL); yylval.str = strdup(yytext); return KW_IDENTIFIER; }
 
-integer                 { yylval.str = strdup(yytext); return KW_integer; }
+integer|int             { yylval.str = strdup(yytext); return KW_integer; }
 scalar                  { yylval.str = strdup(yytext); return KW_scalar; }
 str                     { yylval.str = strdup(yytext); return KW_str; }
-bool                    { yylval.str = strdup(yytext); return KW_bool; }
+boolean|bool            { yylval.str = strdup(yytext); return KW_bool; }
 True                    { yylval.str = strdup(yytext); return KW_True; }
 False                   { yylval.str = strdup(yytext); return KW_False; }
 const                   { yylval.str = strdup(yytext); return KW_const; }

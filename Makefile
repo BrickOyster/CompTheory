@@ -1,6 +1,4 @@
-cmnd = "$1"
-
-default: myrules.l;
+default: myparser.y myrules.l cgen.c;
 	@bison -d -v -r all myparser.y
 	@flex myrules.l
 	@gcc -o myLexer myparser.tab.c lex.yy.c cgen.c -lfl
@@ -13,72 +11,28 @@ clean: lex.yy.c  myLexer;
 	@rm myparser.output
 	@make
 
-all:
-	@echo "\n array_comprehension\n" 
-	make array_comprehension
-	@echo "\n bookstore\n" 
+exam:
 	make bookstore
-	@echo "\n prime\n" 
-	make prime
-	@echo "\n qsort_comprehension\n" 
-	make qsort_comprehension
-	@echo "\n qsort\n" 
-	make qsort
-	@echo "\n qsortWithComp\n" 
-	make qsortWithComp
-	@echo "\n reverseWithComprehension\n" 
 	make reverseWithComprehension
-	@echo "\n useless\n" 
-	make useless
+	make prime
 
-array_comprehension: LambdaCodeExamples/array_comprehension.la;
-	./myLexer < LambdaCodeExamples/array_comprehension.la > o.c
+bookstore: bookstore.la;
+	./myLexer < bookstore.la > bookstore.c
+	gcc bookstore.c -o bookstore_app
 	@echo "\n"
-	gcc o.c -o output
-	@echo "\n"
-	./output
+	./bookstore_app
 	
-bookstore: LambdaCodeExamples/bookstore.la;
-	./myLexer < LambdaCodeExamples/bookstore.la > o.c
-	gcc o.c -o output
+reverseWithComprehension: reverseWithComprehension.la;
+	./myLexer < reverseWithComprehension.la > reverseWithComprehension.c
+	gcc reverseWithComprehension.c -o reverseWithComprehension_app
 	@echo "\n"
-	./output
+	./reverseWithComprehension_app
 
-prime: LambdaCodeExamples/prime.la;
-	./myLexer < LambdaCodeExamples/prime.la > o.c
-	gcc o.c -o output
+prime: prime.la;
+	./myLexer < prime.la > prime.c
+	gcc prime.c -o prime_app
 	@echo "\n"
-	./output
-
-qsort_comprehension: LambdaCodeExamples/qsort_comprehension.la;
-	./myLexer < LambdaCodeExamples/qsort_comprehension.la > o.c
-	gcc o.c -o output
-	@echo "\n"
-	./output
-
-qsort: LambdaCodeExamples/qsort.la;
-	./myLexer < LambdaCodeExamples/qsort.la > o.c
-	gcc o.c -o output
-	@echo "\n"
-	./output
-
-qsortWithComp: LambdaCodeExamples/qsortWithComp.la;
-	./myLexer < LambdaCodeExamples/qsortWithComp.la > o.c
-	gcc o.c -o output
-	@echo "\n"
-	./output
-
-reverseWithComprehension: LambdaCodeExamples/reverseWithComprehension.la;
-	./myLexer < LambdaCodeExamples/reverseWithComprehension.la > o.c
-	gcc o.c -o output
-	@echo "\n"
-	./output
-
-useless: LambdaCodeExamples/useless.la;
-	./myLexer < LambdaCodeExamples/useless.la > o.c
-	gcc o.c -o output
-	@echo "\n"
-	./output
+	./prime_app
 
 h: 
 	@echo "h	: Display this message"

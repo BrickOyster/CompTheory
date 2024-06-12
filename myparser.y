@@ -200,8 +200,6 @@
 
 %%
 
-
-
 out:
     program
     { printf("\n#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n#include <math.h>\n\n#include \"cgen.h\"\n#include\"lambdalib.h\"\n%s", $1); }
@@ -305,7 +303,7 @@ comp_function_statements:
 comp_function_parameters:
     var KW_colon type                  { $$ = template("%s %s", $3, $1);}
     |comp_function_parameters KW_comma var KW_colon type  
-    { $$ = template("%s, %s %s", $1, $5, $3);}
+    { $$ = template("%s, %s %s", $1, $5, $3); }
     ;
 
 compvars:
@@ -313,7 +311,7 @@ compvars:
     |compvars compvars_line                     { $$ = template("%s\n%s", $1, $2); }
 
 compvars_line:
-    KW_hash KW_IDENTIFIER                      { $$ = template("%s", $2); }
+    KW_hash KW_IDENTIFIER                       { $$ = template("%s", $2); }
     |KW_hash KW_IDENTIFIER arrays               { $$ = template("%s%s", $2, $3); }
     |compvars_line KW_comma KW_hash KW_IDENTIFIER    
     { $$ = template("%s, %s", $1, $4); }
